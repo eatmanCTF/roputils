@@ -761,6 +761,7 @@ class ROP_X86_64(ROP):
         return buf
 
     def call_chain_ptr(self, *calls, **kwargs):
+        # kwargs: use given [rbp, leave, set_args, call_ptr]
         gadget_candidates = [
             # gcc (Ubuntu/Linaro 4.6.3-1ubuntu5) 4.6.3
             # Ubuntu clang version 3.0-6ubuntu3 (tags/RELEASE_30/final) (based on LLVM 3.0)
