@@ -771,8 +771,8 @@ class ROP_X86_64(ROP):
             ('\x4c\x89\xea\x4c\x89\xf6\x44\x89\xff\x41\xff\x14\xdc\x48\x83\xc3\x01\x48\x39\xeb\x75\xea', '\x48\x8b\x5c\x24\x08\x48\x8b\x6c\x24\x10\x4c\x8b\x64\x24\x18\x4c\x8b\x6c\x24\x20\x4c\x8b\x74\x24\x28\x4c\x8b\x7c\x24\x30\x48\x83\xc4\x38\xc3', True),
             # gcc (Ubuntu 4.8.2-19ubuntu1) 4.8.2
             ('\x4c\x89\xea\x4c\x89\xf6\x44\x89\xff\x41\xff\x14\xdc\x48\x83\xc3\x01\x48\x39\xeb\x75\xea', '\x48\x83\xc4\x08\x5b\x5d\x41\x5c\x41\x5d\x41\x5e\x41\x5f\xc3', True),
+            ('\x4c\x89\xea\x4c\x89\xf6\x44\x89\xff\x41\xff\x14\xdc\x48\x83\xc3\x01\x48\x39\xdd\x75\xea', '\x48\x83\xc4\x08\x5B\x5d\x41\x5c\x41\x5d\x41\x5e\x41\x5f\xc3', True)
         ]
-
         for chunk1, chunk2, _args_reversed in gadget_candidates:
             try:
                 set_regs = self.gadget(chunk2)
@@ -782,7 +782,14 @@ class ROP_X86_64(ROP):
             except ValueError:
                 pass
         else:
-            raise Exception('gadget not found')
+            if 'set_regs' in kwargs and 'call_ptr' in kwargs:
+                set_args = kwargs['set_args']
+                call_ptr = kwargs['call_ptr']
+            else:
+                raise Exception('gadget not found')
+
+        rbp = kwargs['rbp'] if 'rbp' in kwargs else 1
+        rbx = rbp - 1
 
         buf = self.p(set_regs)
 
@@ -797,7 +804,7 @@ class ROP_X86_64(ROP):
                 ptr = self.got(ptr)
 
             buf += self.junk()
-            buf += self.p([0, 1, ptr])
+            buf += self.p([rbx, rbp, ptr - self.wordsize * rbx])
             if not args_reversed:
                 for arg in args:
                     buf += self.p(arg)
@@ -813,7 +820,8 @@ class ROP_X86_64(ROP):
             buf += self.p(0)
             buf += self.p(kwargs['pivot'] - self.wordsize)
             buf += self.p(0) * 4
-            buf += self.p(self.gadget('leave'))
+            leave_ptr = kwargs['leave'] if 'leave' in kwargs else self.gadget('leave')
+            buf += self.p(leave_ptr)
         else:
             buf += self.p(0) * 6
         return buf
